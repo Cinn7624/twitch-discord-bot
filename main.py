@@ -27,10 +27,12 @@ from fastapi.responses import JSONResponse
 @app.get("/twitch-command")
 async def twitch_command_get(command: str, user: str, message: str = ""):
     webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
+
     if message:
         content = f"🎬 Twitch user **{user}** ran `{command}`: {message}"
     else:
         content = f"🎬 Twitch user **{user}** ran `{command}`"
+
     async with httpx.AsyncClient() as client:
         await client.post(webhook_url, json={"content": content})
     return {"status": "sent to discord"}
