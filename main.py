@@ -3,29 +3,28 @@ import httpx
 import os
 from dotenv import load_dotenv
 
-# Load environment variables (for your Discord webhook URL)
+# Load environment variables
 load_dotenv()
+
 app = FastAPI()
 
-# Get the Discord webhook URL from your environment variables
+# Get Discord webhook URL from environment variables
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
-# ✅ Combined GET + POST route for maximum compatibility
+# ✅ Combined GET + POST route for compatibility (Nightbot, etc.)
 @app.api_route("/twitch-command", methods=["GET", "POST"])
 async def twitch_command(request: Request):
     if request.method == "POST":
-        # If Nightbot or other services can send JSON (POST)
         data = await request.json()
         command = data.get("command")
         user = data.get("user")
         message = data.get("message", "")
     else:
-        # If Nightbot uses GET requests
         command = request.query_params.get("command")
         user = request.query_params.get("user")
         message = request.query_params.get("message", "")
 
-    # Basic validation
+    # Validation
     if not command or not user:
         return {"error": "Missing required fields"}
 
@@ -35,10 +34,10 @@ async def twitch_command(request: Request):
     else:
         discord_message = f"🎥 **{user}** used `{command}`"
 
-    # Send to Discord
+    # Send message to Discord
     async with httpx.AsyncClient() as client:
         await client.post(DISCORD_WEBHOOK_URL, json={"content": discord_message})
 
-    return {"status": "ok", "sent": discord_message}
-
+    # ✅ Clean Nightbot-friendly response
+    return "✅ Message sent to Discord!"
 
