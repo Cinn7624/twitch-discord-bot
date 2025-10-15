@@ -9,8 +9,10 @@ app = FastAPI()
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
 @app.post("/twitch-command")
-async def twitch_command(data: dict):
+async def twitch_command(request: Request):
+    data = await request.json()
     print("Incoming data:", data)
+
     command = data.get("command")
     user = data.get("user")
     message = data.get("message", "")
