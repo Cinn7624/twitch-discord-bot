@@ -1,45 +1,44 @@
 from fastapi import FastAPI, Request
-import requests
+import httpx
 import os
+from dotenv import load_dotenv
 
+# Load environment variables (for your Discord webhook URL)
+load_dotenv()
 app = FastAPI()
 
-# Load your Discord webhook from environment variable
+# Get the Discord webhook URL from your environment variables
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
-@app.get("/")
-def home():
-    return {"status": "ok", "message": "Twitch-Discord bot is running!"}
-
-@app.post("/twitch-command")
+# ✅ Combined GET + POST route for maximum compatibility
+@app.api_route("/twitch-command", methods=["GET", "POST"])
 async def twitch_command(request: Request):
-    try:
+    if request.method == "POST":
+        # If Nightbot or other services can send JSON (POST)
         data = await request.json()
         command = data.get("command")
         user = data.get("user")
         message = data.get("message", "")
+    else:
+        # If Nightbot uses GET requests
+        command = request.query_params.get("command")
+        user = request.query_params.get("user")
+        message = request.query_params.get("message", "")
 
-        if not DISCORD_WEBHOOK_URL:
-            return {"error": "Missing DISCORD_WEBHOOK_URL"}
+    # Basic validation
+    if not command or not user:
+        return {"error": "Missing required fields"}
 
-        # Customize your Discord message format here
-        payload = {
-            "content": f"**{user}** ran {command} — {message}"
-        }
+    # Format message for Discord
+    if message:
+        discord_message = f"🎥 **{user}** used `{command}`: {message}"
+    else:
+        discord_message = f"🎥 **{user}** used `{command}`"
 
-        # Send to Discord
-        response = requests.post(DISCORD_WEBHOOK_URL, json=payload)
+    # Send to Discord
+    async with httpx.AsyncClient() as client:
+        await client.post(DISCORD_WEBHOOK_URL, json={"content": discord_message})
 
-        if response.status_code == 204:
-            return {"status": "success", "message": "Posted to Discord!"}
-        else:
-            return {"status": "error", "discord_response": response.text}
-    except Exception as e:
-        return {"status": "error", "details": str(e)}
-
-if __name__ == "__main__":
-    import uvicorn
-    # Run the app on port 8080 (Koyeb will detect this automatically)
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    return {"status": "ok", "sent": discord_message}
 
 
